@@ -1,0 +1,41 @@
+        {
+            "ret": [
+                {
+                    "contractRet": "SUCCESS",
+                    "fee": 345000
+                }
+            ],
+            "signature": [
+                "331b171543b8db2ade06fdf6d0b2f2c322fe5d977e6b60f742d0a3789ae7049d118fc10a4ae6933061aae43411d66b7e6438248c8c86e67d0b3c2d0d4514b9bb1b"
+            ],
+            "txID": "c86011bc9e94159523dadc2e73da4055aa44e3148a1c24e7dcbaa32740179e3a",
+            "net_usage": 0,
+            "raw_data_hex": "0a02e4a02208625add1fde34f2fd409ef3b985c9315aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541a60acb52ce87631f47bf45a3f3c821e7f76d3731121541a614f803b6fd780986a42c78ec9c7f77e6ded13c2244a9059cbb000000000000000000000000b58829bf8fa1bf33736feb36e43fbb412215ed06000000000000000000000000000000000000000000000000000000000bebc20070fef4ae85c931900180e1eb17",
+            "net_fee": 345000,
+            "energy_usage": 31895,
+            "blockNumber": 57533622,
+            "block_timestamp": 1703234232000,
+            "energy_fee": 0,
+            "energy_usage_total": 31895,
+            "raw_data": {
+                "contract": [
+                    {
+                        "parameter": {
+                            "value": {
+                                "data": "a9059cbb000000000000000000000000b58829bf8fa1bf33736feb36e43fbb412215ed06000000000000000000000000000000000000000000000000000000000bebc200",
+                                "owner_address": "41a60acb52ce87631f47bf45a3f3c821e7f76d3731",
+                                "contract_address": "41a614f803b6fd780986a42c78ec9c7f77e6ded13c"
+                            },
+                            "type_url": "type.googleapis.com/protocol.TriggerSmartContract"
+                        },
+                        "type": "TriggerSmartContract"
+                    }
+                ],
+                "ref_block_bytes": "e4a0",
+                "ref_block_hash": "625add1fde34f2fd",
+                "expiration": 1703234402718,
+                "fee_limit": 50000000,
+                "timestamp": 1703234222718
+            },
+            "internal_transactions": []
+        }
