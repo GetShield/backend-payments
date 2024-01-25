@@ -1,16 +1,7 @@
-# QuickSwap contest microservice
+# Payment Gateway - Tron
 
-A microservice to cache data of leaderboard for better UX and quick access of data.
-
+A payment gateway for Tron blockchain to be integrated in marketplaces.
 
 ### How to run
 
 Use `npm run dev` to spin up development server
-
-## License
-
-[GNU GPL V3.0](./LICENSE)
-
-## Credits
-
-To all the Ethereum and Polygon community
