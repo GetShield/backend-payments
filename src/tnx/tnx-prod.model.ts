@@ -31,4 +31,4 @@ const tnxSchema = new Schema<ITnx>({
 });
 
 // 3. Create a Model.
-export const tnxStagingModel = model<ITnx>('tnx', tnxSchema);
+export const tnxProdModel = model<ITnx>('tnx-prod', tnxSchema);

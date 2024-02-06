@@ -12,15 +12,19 @@ import rateLimit from 'express-rate-limit';
 import axios from 'axios';
 import { BigNumber, utils } from 'ethers';
 import { Schema, model, connect } from 'mongoose';
-import { TnxStatus, tnxModel } from './tnx/tnx.model';
+import { TnxStatus, tnxStagingModel } from './tnx/tnx.model';
 //@ts-ignore
 import TronTxDecoder from 'tron-tx-decoder';
+import { tnxProdModel } from './tnx/tnx-prod.model';
 
 const decoder = new TronTxDecoder({ mainnet: true });
 
 if (!process.env['MONGO_URL']) {
   throw new Error('DB url missing');
 }
+// if (!process.env['WEBHOOK_URL']) {
+//   throw new Error('Webhook url missing')
+// }
 connect(process.env['MONGO_URL']).then((res) => {
   console.log('DB CONNECTED---> : ');
 });
@@ -54,7 +58,10 @@ app.get('/checkPaymentStatus', async (req, res) => {
       throw new Error('missing orderId field');
     }
 
-    const order = await tnxModel.findOne({ orderId: query.orderId.toString() });
+
+    const model: any = query.env === 'production' ? tnxProdModel : tnxStagingModel;
+
+    const order = await model.findOne({ orderId: query.orderId.toString() });
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
@@ -73,7 +80,8 @@ app.post('/add-tnx', async (req, res) => {
     if (!body.timestamp || !body.value || !body.orderId) {
       throw new Error('missing fields');
     }
-    const tnx = await tnxModel.create(body);
+    const model: any = body.env === 'production' ? tnxProdModel : tnxStagingModel;
+    const tnx = await model.create(body);
     console.log('tnx', tnx);
     return res.json({
       tnx,
@@ -101,7 +109,8 @@ app.post('/check-tnx', async (req, res) => {
       throw new Error('missing fields');
     }
     console.log('orderId', body.orderId);
-    const foundTx = await tnxModel.findOne({
+    const model: any = body.env === 'production' ? tnxProdModel : tnxStagingModel;
+    const foundTx = await model.findOne({
       orderId: body.orderId,
     });
     console.log('foundTx', foundTx);
@@ -142,7 +151,7 @@ app.post('/check-tnx', async (req, res) => {
         // console.log('foundValue', foundValue);
         // const formattedVal = baseUnits.split('.')[0]
         // console.log('formattedVal', formattedVal);
-        if (foundTx.value == baseUnits) {
+        if (Number(foundTx.value) == Number(baseUnits)) {
           tnxComplete = true;
           foundTx.status = TnxStatus.complete;
           foundTx.tnxData = d;
@@ -154,6 +163,20 @@ app.post('/check-tnx', async (req, res) => {
       }
     }
 
+    if (tnxComplete && process.env['WEBHOOK_URL']) {
+      try {
+        await axios.post(process.env['WEBHOOK_URL'] as string, {
+          "orderId": foundTx.orderId,
+          "orderStatus": 'completed'
+        }, {
+          headers: {
+            Authorization: process.env['WEBHOOK_SECRET']
+          }
+        })
+      } catch (error) {
+        console.log('Error while calling webhook url', error)
+      }
+    }
     return res.json({
       found: tnxComplete,
     });
