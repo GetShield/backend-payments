@@ -11,11 +11,12 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import axios from 'axios';
 import { BigNumber, utils } from 'ethers';
-import { Schema, model, connect } from 'mongoose';
+import { connect } from 'mongoose';
 import { TnxStatus, tnxStagingModel } from './tnx/tnx.model';
 //@ts-ignore
 import TronTxDecoder from 'tron-tx-decoder';
 import { tnxProdModel } from './tnx/tnx-prod.model';
+import { WEBHOOK_SECRET_PRODUCTION, WEBHOOK_SECRET_STAGING, WEBHOOK_URL_PRODUCTION, WEBHOOK_URL_STAGING } from './const';
 
 const decoder = new TronTxDecoder({ mainnet: true });
 
@@ -163,14 +164,17 @@ app.post('/check-tnx', async (req, res) => {
       }
     }
 
-    if (tnxComplete && process.env['WEBHOOK_URL']) {
+    const WEBHOOK_URL = body.env === 'production' ? WEBHOOK_URL_PRODUCTION: WEBHOOK_URL_STAGING
+    const WEBHOOK_SECRET = body.env === 'production' ? WEBHOOK_SECRET_PRODUCTION: WEBHOOK_SECRET_STAGING
+
+    if (tnxComplete && WEBHOOK_URL) {
       try {
-        await axios.post(process.env['WEBHOOK_URL'] as string, {
+        await axios.post(WEBHOOK_URL as string, {
           "orderId": foundTx.orderId,
           "orderStatus": 'completed'
         }, {
           headers: {
-            Authorization: process.env['WEBHOOK_SECRET']
+            Authorization: WEBHOOK_SECRET
           }
         })
       } catch (error) {
