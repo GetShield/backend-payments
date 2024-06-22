@@ -3,3 +3,7 @@ export const WEBHOOK_SECRET_STAGING = process.env.WEBHOOK_SECRET_STAGING;
 
 export const WEBHOOK_URL_PRODUCTION = process.env.WEBHOOK_URL_PRODUCTION;
 export const WEBHOOK_SECRET_PRODUCTION = process.env.WEBHOOK_SECRET_PRODUCTION;
+
+export const PORT = process.env['PORT'] || 4000;
+
+export const RECEIVER_WALLET_ADDRESS = process.env.RECEIVER_WALLET_ADDRESS

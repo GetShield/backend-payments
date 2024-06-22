@@ -17,6 +17,7 @@
     "@types/cors": "^2.8.13",
     "@types/cron": "^2.0.0",
     "@types/express": "^4.17.17",
+    "@types/morgan": "^1.9.9",
     "@types/node": "^17.0.21",
     "@types/node-cron": "^3.0.7",
     "@typescript-eslint/eslint-plugin": "^5.12.1",
@@ -48,8 +49,11 @@
     "express-rate-limit": "^6.7.0",
     "graphql-tag": "^2.12.6",
     "mongoose": "^8.0.3",
+    "morgan": "^1.10.0",
     "node-cron": "^3.0.2",
     "redis": "^4.6.4",
-    "tron-tx-decoder": "^2.0.2"
+    "tron-tx-decoder": "^2.0.2",
+    "winston": "^3.13.0",
+    "winston-daily-rotate-file": "^5.0.0"
   }
 }

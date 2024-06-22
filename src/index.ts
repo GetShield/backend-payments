@@ -9,28 +9,33 @@ import * as bodyParser from 'body-parser';
 import cors from 'cors';
 
 import rateLimit from 'express-rate-limit';
-import axios from 'axios';
-import { BigNumber, utils } from 'ethers';
 import { connect } from 'mongoose';
-import { TnxStatus, tnxStagingModel } from './tnx/tnx.model';
-//@ts-ignore
-import TronTxDecoder from 'tron-tx-decoder';
-import { tnxProdModel } from './tnx/tnx-prod.model';
-import { WEBHOOK_SECRET_PRODUCTION, WEBHOOK_SECRET_STAGING, WEBHOOK_URL_PRODUCTION, WEBHOOK_URL_STAGING } from './const';
+import { PORT, RECEIVER_WALLET_ADDRESS } from './const';
+import { checkPaymentStatus } from './controllers/checkPaymentStatus.controller';
+import { initTnxController } from './controllers/initTnx.controller';
+import { checkTnxStatusController } from './controllers/checkTnxStatus.controller';
+import { Logger } from './utils/Logger';
 
-const decoder = new TronTxDecoder({ mainnet: true });
+const logger = Logger.getInstance('index-server')
 
 if (!process.env['MONGO_URL']) {
-  throw new Error('DB url missing');
+  throw new Error('DB url missing in env');
 }
-// if (!process.env['WEBHOOK_URL']) {
-//   throw new Error('Webhook url missing')
-// }
+if (!RECEIVER_WALLET_ADDRESS) {
+  throw new Error('wallet address missing in env');
+}
+
 connect(process.env['MONGO_URL']).then((res) => {
   console.log('DB CONNECTED---> : ');
+  logger.info({ message: 'DB CONNECTED---> :' })
+}).catch((e) => {
+  console.log('Database not connected: ', e)
+  logger.error({ message: 'DB NOT CONNECTED---> :', error: e })
+  process.exit(0)
 });
 
 const app: Application = express();
+app.use(Logger.getHttpLoggerInstance());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
@@ -50,165 +55,11 @@ app.get('/ping', (req: Request, res: Response): Response => {
   return res.status(200).send('pong');
 });
 
-const PORT = process.env['PORT'] || 4000;
+app.get('/checkPaymentStatus', checkPaymentStatus);
 
-app.get('/checkPaymentStatus', async (req, res) => {
-  try {
-    const query = req.query;
-    if (!query.orderId) {
-      throw new Error('missing orderId field');
-    }
+app.post('/add-tnx', initTnxController);
 
-
-    const model: any = query.env === 'production' ? tnxProdModel : tnxStagingModel;
-
-    const order = await model.findOne({ orderId: query.orderId.toString() });
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-    const isComplete = order.status === TnxStatus.complete;
-    return res.json({ orderStatus: isComplete });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/add-tnx', async (req, res) => {
-  try {
-    const body = req.body;
-    // Math.floor((new Date()).getTime() / 1000)
-
-    if (!body.timestamp || !body.value || !body.orderId) {
-      throw new Error('missing fields');
-    }
-    const model: any = body.env === 'production' ? tnxProdModel : tnxStagingModel;
-    const tnx = await model.create(body);
-    console.log('tnx', tnx);
-    return res.json({
-      tnx,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      error: error.message,
-      message: 'Could not create tnx',
-    });
-  }
-});
-
-async function decodeTxInput(txId: string) {
-  const decodedInput = await decoder.decodeInputById(txId);
-  return decodedInput;
-}
-// const WALLET_ADDRESS = 'TPR1bjDXdAbUgYj3WanuG5KuVdYhSyrQBd'
-// https://api.trongrid.io/v1/accounts/TNSvYZn3fV7bcJHaPwdBGCk6yT5DffmK4h/transactions/trc20?&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
-const WALLET_ADDRESS = 'TWNxsGw1o4rnP4FExQSEXuYzLtXm3dMkRd';
-app.post('/check-tnx', async (req, res) => {
-  try {
-    const body = req.body;
-    console.log('body', body);
-    if (!body.timestamp || !body.value || !body.orderId) {
-      throw new Error('missing fields');
-    }
-    console.log('orderId', body.orderId);
-    const model: any = body.env === 'production' ? tnxProdModel : tnxStagingModel;
-    const foundTx = await model.findOne({
-      orderId: body.orderId,
-    });
-    console.log('foundTx', foundTx);
-    if (!foundTx) {
-      // throw new Error('tnx not found')
-      return res.json({
-        found: false,
-      });
-    }
-    // const list = await axios.get(`https://api.trongrid.io/v1/accounts/${WALLET_ADDRESS}/transactions`)
-    const list = await axios.get(
-      `https://api.trongrid.io/v1/accounts/${WALLET_ADDRESS}/transactions/trc20?&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`,
-    );
-    console.log('list length', list.data?.data?.length);
-    if (!list.data || !list.data?.data?.length) {
-      return res.json({
-        found: false,
-      });
-    }
-
-    const listTx = list.data.data;
-
-    let tnxComplete = false;
-    for (let index = 0; index < listTx.length; index++) {
-      const d = listTx[index];
-      try {
-        // const txData = await decodeTxInput(d.txID);
-        // console.log('txData: ', txData);
-        // console.log('txData', txData);
-        const value = d.value.toString();
-        console.log('value -> ', value);
-        const smallUnits = BigNumber.from(value);
-        console.log('smallUnits -> ', smallUnits);
-        const baseUnits = utils.formatUnits(smallUnits, 6);
-        console.log('smallUnits', baseUnits, typeof baseUnits);
-
-        // const foundValue = foundTx.value.split('.')[0]
-        // console.log('foundValue', foundValue);
-        // const formattedVal = baseUnits.split('.')[0]
-        // console.log('formattedVal', formattedVal);
-        if (Number(foundTx.value) == Number(baseUnits)) {
-          tnxComplete = true;
-          foundTx.status = TnxStatus.complete;
-          foundTx.tnxData = d;
-          await foundTx.save();
-          break;
-        }
-      } catch (error: any) {
-        console.log('Error ==>', error.message);
-      }
-    }
-
-    const WEBHOOK_URL = body.env === 'production' ? WEBHOOK_URL_PRODUCTION: WEBHOOK_URL_STAGING
-    const WEBHOOK_SECRET = body.env === 'production' ? WEBHOOK_SECRET_PRODUCTION: WEBHOOK_SECRET_STAGING
-
-    if (tnxComplete && WEBHOOK_URL) {
-      try {
-        await axios.post(WEBHOOK_URL as string, {
-          "orderId": foundTx.orderId,
-          "orderStatus": 'completed'
-        }, {
-          headers: {
-            Authorization: WEBHOOK_SECRET
-          }
-        })
-      } catch (error) {
-        console.log('Error while calling webhook url', error)
-      }
-    }
-    return res.json({
-      found: tnxComplete,
-    });
-    // list.data.data.filter(async (d: any) => {
-    //   try {
-    // const txData = await decodeTxInput(d.txID);
-    // console.log('txData', txData);
-    //   } catch (error) {
-
-    //   }
-    //   // const rawTxData = d.raw_data.contract?.[0]?.parameter?.value?.data
-    //   // if (rawTxData) {
-    //   //   const abi = ['function transfer(address to, uint256 value)'];
-    //   //   const iface = new utils.Interface(abi);
-    //   //   const decoded = iface.parseTransaction({ data: 'a9059cbb000000000000000000000000b58829bf8fa1bf33736feb36e43fbb412215ed06000000000000000000000000000000000000000000000000000000000000bebc200' });
-    //   //   console.log(decoded);
-    //   // }
-    // })
-    // list.
-    // console.log('list -- ', list.data.data);
-    return res.status(200).send('webhoook');
-  } catch (error: any) {
-    res.status(500).json({
-      error: error.message,
-      message: 'Could not create tnx',
-    });
-  }
-});
+app.post('/check-tnx', checkTnxStatusController);
 
 try {
   app.listen(PORT, (): void => {
@@ -216,10 +67,12 @@ try {
   });
 } catch (error: any) {
   console.error(`Error occured while trying to start server: ${error.message}`);
+  logger.error({ message: `Error occured while trying to start server: ${error.message}` });
 }
 
 //Catch uncaught exceptions
 process.on('uncaughtException', function (err) {
   // handle the error safely
   console.error('Error: Uncaught Exception :: ', err);
+  logger.error({ message: `Error Uncaught Exception`, error: err });
 });
